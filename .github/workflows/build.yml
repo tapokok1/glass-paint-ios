@@ -1,0 +1,54 @@
+name: Build GlassPaint iOS IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build archive
+        run: |
+          xcodebuild archive \
+            -project GlassPaint.xcodeproj \
+            -scheme GlassPaint \
+            -configuration Release \
+            -archivePath build/GlassPaint.xcarchive \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            ONLY_ACTIVE_ARCH=NO
+
+      - name: Create IPA from archive
+        run: |
+          cd build/GlassPaint.xcarchive/Products/Applications
+          mkdir -p ../../../../output/Payload
+          cp -r GlassPaint.app ../../../../output/Payload/
+          cd ../../../../output
+          zip -r GlassPaint.ipa Payload
+          echo "IPA created successfully!"
+          ls -lh GlassPaint.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GlassPaint-IPA
+          path: output/GlassPaint.ipa
+          retention-days: 30
